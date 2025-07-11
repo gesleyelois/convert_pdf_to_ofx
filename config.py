@@ -25,10 +25,10 @@ BANK_CONFIGS = {
     'mercadopago': {
         'name': 'Mercado Pago',
         'agency': '1',
-        'account': '46488507680',
-        'bank_id': '0260',
-        'org': 'NU PAGAMENTOS S.A.',
-        'fid': '260'
+        'account': '74645773646',
+        'bank_id': '323',
+        'org': 'MERCADO PAGO INSTITUIÇÃO DE PAGAMENTO LTDA.',
+        'fid': '323'
     }
 }
 
