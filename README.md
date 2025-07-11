@@ -23,6 +23,24 @@ cd convert_pdf_to_ofx
 pip install -r requirements.txt
 ```
 
+## 💡 Usando ambiente virtual (opcional, mas recomendado)
+
+Para evitar conflitos de dependências com outros projetos Python, recomenda-se usar um ambiente virtual:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # No Linux/Mac
+# ou
+.venv\Scripts\activate   # No Windows
+pip install -r requirements.txt
+```
+
+Depois, rode normalmente:
+
+```bash
+python main.py
+```
+
 ## 🚀 Como Usar
 
 ### 1. Prepare seus PDFs
