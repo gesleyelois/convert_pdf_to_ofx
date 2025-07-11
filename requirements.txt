@@ -1,0 +1,14 @@
+# Dependências do projeto Extrato2OFX
+# Versão refatorada seguindo princípios de Clean Code e Design
+
+# Processamento de PDFs
+pdfplumber>=0.9.0
+
+# Utilitários
+pathlib2>=2.3.7; python_version < "3.4"
+
+# Para desenvolvimento (opcional)
+pytest>=7.0.0
+black>=22.0.0
+flake8>=4.0.0
+mypy>=0.950 
