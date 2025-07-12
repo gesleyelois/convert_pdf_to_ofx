@@ -1,11 +1,15 @@
 # Dependências do projeto Extrato2OFX
-# Versão refatorada seguindo princípios de Clean Code e Design
+# Sistema de categorização por palavras-chave
 
 # Processamento de PDFs
 pdfplumber>=0.9.0
 
 # Utilitários
 pathlib2>=2.3.7; python_version < "3.4"
+
+# Parsing de arquivos OFX
+ofxparse>=0.21
+beautifulsoup4>=4.13.0
 
 # Para desenvolvimento (opcional)
 pytest>=7.0.0

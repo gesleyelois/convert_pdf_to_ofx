@@ -1,14 +1,23 @@
 # convert_pdf_to_ofx
 
-Conversor de extratos bancários em PDF para formato OFX.
+Conversor de extratos bancários em PDF para formato OFX com **categorização inteligente por palavras-chave**.
 
 ## 🚀 Características
 
 - ✅ **Suporte a múltiplos bancos**: Itaú, Mercado Pago e outros
 - ✅ **Conversão automática**: Detecta o banco automaticamente
 - ✅ **Formato OFX**: Compatível com softwares de gestão financeira
-- ✅ **Configurável**: Fácil personalização para novos bancos
+- ✅ **Categorização inteligente**: Sistema de palavras-chave otimizado para o contexto brasileiro
+- ✅ **Configurável**: Fácil personalização de categorias e palavras-chave
 - ✅ **Logs detalhados**: Acompanhe todo o processo de conversão
+
+## 🏦 Bancos Suportados
+
+- **Itaú**: Extratos em PDF
+- **Mercado Pago**: Extratos em PDF
+- **Nubank**: Extratos em PDF
+- **PagSeguro**: Extratos em PDF
+- **Outros**: Estrutura extensível para novos bancos
 
 ## 🛠️ Instalação
 
@@ -35,15 +44,11 @@ source .venv/bin/activate  # No Linux/Mac
 pip install -r requirements.txt
 ```
 
-Depois, rode normalmente:
-
-```bash
-python main.py
-```
-
 ## 🚀 Como Usar
 
-### 1. Prepare seus PDFs
+### 1. Conversão de PDF para OFX
+
+#### Prepare seus PDFs
 Coloque os extratos bancários em PDF na pasta `pdfs/`:
 ```
 pdfs/
@@ -52,12 +57,12 @@ pdfs/
 └── outros_extratos.pdf
 ```
 
-### 2. Execute o conversor
+#### Execute o conversor
 ```bash
 python main.py
 ```
 
-### 3. Acesse os arquivos OFX gerados
+#### Acesse os arquivos OFX gerados
 Os arquivos convertidos estarão na pasta `ofxs_gerados/`:
 ```
 ofxs_gerados/
@@ -66,97 +71,171 @@ ofxs_gerados/
 └── outros_extratos.ofx
 ```
 
-## 📝 Logs de Execução
+### 2. Categorização Inteligente de OFX
 
-Durante a conversão, você verá logs como:
-```
-[INFO] Diretórios configurados com sucesso
-[INFO] Iniciando conversão de PDFs em OFX...
-[INFO] Encontrados 3 arquivos PDF para processar
-[INFO] Processando extrato_itau.pdf (itau)...
-[INFO] extrato_itau.pdf convertido com sucesso! Total de transações: 15
-[INFO] Processamento concluído: 3 sucessos, 0 falhas
-[INFO] Conversão concluída. Arquivos OFX gerados em: ofxs_gerados
+#### Execute a categorização
+```bash
+python categorize_smart.py
 ```
 
-## 🔧 Configuração
+#### Teste o sistema de categorização
+```bash
+python categorize_smart.py --test
+```
 
-### Adicionando um Novo Banco
+#### Acesse os arquivos OFX categorizados
+Os arquivos categorizados estarão na pasta `ofxs_categorizados/`:
+```
+ofxs_categorizados/
+├── categorizado_extrato_itau.ofx
+├── categorizado_extrato_mercadopago.ofx
+└── categorizado_outros_extratos.ofx
+```
 
-1. **Crie um novo parser:**
+## 📊 Exemplos de Uso
+
+### Exemplo 1: Processamento Completo
+```bash
+# 1. Converta PDFs para OFX
+python main.py
+
+# 2. Categorize os OFXs gerados
+python categorize_smart.py
+
+# 3. Verifique os resultados
+ls ofxs_categorizados/
+```
+
+### Exemplo 2: Teste do Sistema
+```bash
+# Teste a precisão do categorizador
+python categorize_smart.py --test
+```
+
+### Exemplo 3: Personalização
+```bash
+# 1. Edite as palavras-chave
+nano keyword_config.py
+
+# 2. Execute novamente
+python categorize_smart.py
+```
+
+## 🧠 Sistema de Categorização Inteligente
+
+### Como Funciona
+
+O sistema usa um **categorizador inteligente baseado em palavras-chave** otimizado para o contexto bancário brasileiro:
+
+1. **Leitura dos OFXs**: O sistema lê todos os arquivos OFX da pasta `ofxs_gerados/`
+2. **Análise das transações**: Extrai descrições e valores das transações
+3. **Categorização por palavras-chave**: Usa regras hierárquicas e contexto para categorizar
+4. **Geração de relatórios**: Cria arquivos com estatísticas detalhadas por categoria
+
+### Categorias Disponíveis
+
+- **Alimentação**: Restaurantes, lanches, supermercados, delivery
+- **Transporte**: Uber, combustível, estacionamento, transporte público
+- **Saúde**: Farmácias, consultas médicas, exames, planos de saúde
+- **Educação**: Escolas, cursos, material escolar, universidades
+- **Lazer**: Cinema, shows, streaming, esportes, viagens
+- **Moradia**: Aluguel, contas de casa, energia, água, internet
+- **Vestuário**: Roupas, calçados, acessórios, higiene pessoal
+- **Serviços**: Bancos, seguros, impostos, serviços profissionais
+- **Investimentos**: Aplicações, rendimentos, corretoras
+- **Transferências**: PIX, TED, DOC, transferências bancárias
+- **Outros**: Transações não categorizadas
+
+### Configuração Personalizada
+
+O sistema é totalmente configurável através do arquivo `keyword_config.py`:
+
+#### Adicionar novas palavras-chave:
 ```python
-# parsers/novo_banco.py
-from parsers.base_parser import BaseParser
-from interfaces import Transaction, AccountData
-
-class NovoBancoParser(BaseParser):
-    def __init__(self):
-        super().__init__('novo_banco')
-    
-    def parse(self, file_path: str) -> tuple[List[Transaction], AccountData]:
-        # Implementação específica do banco
-        pass
-```
-
-2. **Registre o parser:**
-```python
-# services/bank_identifier.py
-from parsers.novo_banco import NovoBancoParser
-
-class BankIdentifier:
-    def __init__(self):
-        self._parsers = {
-            # ... parsers existentes
-            'novo_banco': NovoBancoParser,
-        }
-```
-
-3. **Adicione a configuração:**
-```python
-# config.py
-BANK_CONFIGS = {
-    # ... configurações existentes
-    'novo_banco': {
-        'name': 'Novo Banco',
-        'agency': '1234',
-        'account': '56789-0',
-        'bank_id': '0123',
-        'org': 'NOVO BANCO S.A.',
-        'fid': '123'
-    }
+CATEGORY_KEYWORDS = {
+    "Alimentação": [
+        "ifood", "rappi", "uber eats", "mcdonalds", "padaria",
+        # Adicione suas palavras-chave aqui
+    ],
+    # Adicione novas categorias aqui
 }
 ```
+
+#### Ajustar prioridades:
+```python
+CATEGORY_PRIORITIES = {
+    "Alimentação": 10,  # Alta prioridade
+    "Transporte": 10,
+    "Outros": 0,        # Baixa prioridade
+}
+```
+
+#### Configurar regras baseadas em valores:
+```python
+VALUE_BASED_RULES = {
+    "high_value_threshold": 1000,  # Valores acima de R$ 1000
+    "low_value_threshold": 50,      # Valores abaixo de R$ 50
+    "investment_threshold": 5000,   # Valores acima de R$ 5000 são investimentos
+}
+```
+
+### Eficácia da Categorização
+
+O sistema mostra estatísticas detalhadas incluindo:
+- **Total de transações processadas**
+- **Distribuição por categoria**
+- **Porcentagem de transações em "Outros"**
+- **Avaliação da eficácia** (Excelente: <30% em Outros, Bom: <50% em Outros)
 
 ## 📁 Estrutura do Projeto
 
 ```
 convert_pdf_to_ofx/
-├── config.py                 # Configurações centralizadas
-├── interfaces.py             # Interfaces e tipos
-├── main.py                  # Aplicação principal
-├── requirements.txt          # Dependências
-├── services/                 # Serviços especializados
-├── parsers/                  # Parsers de bancos
-├── writers/                  # Escritores de formato
-├── pdfs/                     # PDFs de entrada
-├── ofxs_gerados/            # OFXs de saída
-└── temp/                    # Arquivos temporários
+├── pdfs/                    # PDFs dos extratos bancários
+├── ofxs_gerados/           # OFXs convertidos
+├── ofxs_categorizados/     # OFXs categorizados
+├── services/               # Serviços do sistema
+│   ├── smart_keyword_categorizer.py  # Categorizador inteligente
+│   ├── logger.py           # Sistema de logs
+│   └── ...
+├── parsers/                # Parsers para diferentes bancos
+├── writers/                # Writers para diferentes formatos
+├── keyword_config.py       # Configuração de palavras-chave
+├── categorize_smart.py     # Script principal de categorização
+├── main.py                 # Script principal de conversão
+└── requirements.txt        # Dependências do projeto
 ```
 
-## 🧪 Testes
+## 🔧 Troubleshooting
 
-### Executar Testes (quando implementados)
+### Problemas Comuns
+
+#### Erro: "Nenhum arquivo PDF válido encontrado"
+- **Solução**: Verifique se os PDFs estão na pasta `pdfs/`
+- **Verificação**: `ls pdfs/`
+
+#### Erro: "Nenhum arquivo OFX encontrado"
+- **Solução**: Execute primeiro `python main.py` para gerar os OFXs
+- **Verificação**: `ls ofxs_gerados/`
+
+#### Erro de encoding nos arquivos OFX
+- **Solução**: O sistema tenta automaticamente diferentes encodings
+- **Verificação**: Verifique se o arquivo OFX não está corrompido
+
+#### Baixa precisão na categorização
+- **Solução**: Adicione palavras-chave específicas no `keyword_config.py`
+- **Verificação**: Execute `python categorize_smart.py --test`
+
+### Logs e Diagnóstico
+
+O sistema gera logs detalhados. Para ver mais informações:
 ```bash
-pytest tests/
+# Ver logs em tempo real
+python main.py 2>&1 | tee log.txt
+
+# Ver logs de categorização
+python categorize_smart.py 2>&1 | tee categorization_log.txt
 ```
-
-## 🤝 Contribuindo
-
-1. **Fork o projeto**
-2. **Crie uma branch para sua feature**
-3. **Adicione testes**
-4. **Faça commit das mudanças**
-5. **Abra um Pull Request**
 
 ## 📄 Licença
 

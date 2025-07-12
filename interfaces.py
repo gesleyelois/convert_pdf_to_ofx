@@ -16,6 +16,7 @@ class Transaction:
     description: str
     transaction_type: str  # 'entrada' ou 'saída'
     trntype: str  # 'CREDIT' ou 'DEBIT'
+    category: str = ""  # Categoria da transação (adicionado para categorização)
 
 @dataclass
 class AccountData:

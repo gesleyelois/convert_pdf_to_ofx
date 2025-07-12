@@ -10,6 +10,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent
 PDFS_DIR = BASE_DIR / 'pdfs'
 OFXS_DIR = BASE_DIR / 'ofxs_gerados'
+OFXS_CATEGORIZADOS_DIR = BASE_DIR / 'ofxs_categorizados'
 TEMP_DIR = BASE_DIR / 'temp'
 
 # Configurações de bancos
