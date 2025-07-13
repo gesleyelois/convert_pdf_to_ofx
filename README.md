@@ -132,6 +132,50 @@ O sistema usa um **categorizador inteligente baseado em palavras-chave** otimiza
 3. **Categorização por palavras-chave**: Usa regras hierárquicas e contexto para categorizar
 4. **Geração de relatórios**: Cria arquivos com estatísticas detalhadas por categoria
 
+### 🔄 Processo de Melhoria da Categorização
+
+O sistema inclui um **processo automatizado de melhoria** que permite identificar e corrigir transações não categorizadas:
+
+#### Processo Completo (Recomendado)
+```bash
+# Executa todo o processo de melhoria automaticamente
+python improve_categorization.py
+```
+
+#### Processo Passo a Passo
+```bash
+# 1. Categorizar arquivos OFX
+python categorize_smart.py
+
+# 2. Extrair transações classificadas como "Outros"
+python extract_outros.py
+
+# 3. Analisar e sugerir categorias
+python suggest_categories.py
+
+# 4. Extrair palavras-chave das sugestões
+python extract_keywords.py
+```
+
+#### Executar Passo Específico
+```bash
+# Apenas extrair transações "Outros"
+python improve_categorization.py --step 2
+
+# Apenas sugerir categorias
+python improve_categorization.py --step 3
+```
+
+#### Arquivos Gerados
+- `csv_reports/transacoes_outros.csv` - Transações não categorizadas
+- `csv_reports/transacoes_outros_sugeridas.csv` - Transações com categorias sugeridas
+
+#### Próximos Passos Após a Análise
+1. **Analise o arquivo** `csv_reports/transacoes_outros_sugeridas.csv`
+2. **Atualize** `keyword_config.py` com as sugestões apropriadas
+3. **Teste as melhorias** com `python test_new_categories.py`
+4. **Reexecute o processo** se necessário
+
 ### Categorias Disponíveis
 
 - **Alimentação**: Restaurantes, lanches, supermercados, delivery
@@ -144,6 +188,10 @@ O sistema usa um **categorizador inteligente baseado em palavras-chave** otimiza
 - **Serviços**: Bancos, seguros, impostos, serviços profissionais
 - **Investimentos**: Aplicações, rendimentos, corretoras
 - **Transferências**: PIX, TED, DOC, transferências bancárias
+- **Reservas**: Reservas automáticas do MercadoPago e outros sistemas
+- **Impostos**: IPVA, licenciamento, taxas governamentais
+- **Salário**: Remunerações, benefícios, comissões
+- **Compras Variadas**: Compras online e gerais
 - **Outros**: Transações não categorizadas
 
 ### Configuração Personalizada
@@ -187,6 +235,23 @@ O sistema mostra estatísticas detalhadas incluindo:
 - **Porcentagem de transações em "Outros"**
 - **Avaliação da eficácia** (Excelente: <30% em Outros, Bom: <50% em Outros)
 
+## 🧪 Testes
+
+### Teste do Sistema de Categorização
+```bash
+# Teste básico do categorizador
+python test_categorization.py
+
+# Teste das novas categorias adicionadas
+python test_new_categories.py
+```
+
+### Teste da Categorização por Tipo
+```bash
+# Testa se o sistema respeita o tipo de transação (débito/crédito)
+python categorize_smart.py --test
+```
+
 ## 📁 Estrutura do Projeto
 
 ```
@@ -194,6 +259,9 @@ convert_pdf_to_ofx/
 ├── pdfs/                    # PDFs dos extratos bancários
 ├── ofxs_gerados/           # OFXs convertidos
 ├── ofxs_categorizados/     # OFXs categorizados
+├── csv_reports/            # Relatórios CSV de análise
+│   ├── transacoes_outros.csv
+│   └── transacoes_outros_sugeridas.csv
 ├── services/               # Serviços do sistema
 │   ├── smart_keyword_categorizer.py  # Categorizador inteligente
 │   ├── logger.py           # Sistema de logs
@@ -202,6 +270,12 @@ convert_pdf_to_ofx/
 ├── writers/                # Writers para diferentes formatos
 ├── keyword_config.py       # Configuração de palavras-chave
 ├── categorize_smart.py     # Script principal de categorização
+├── improve_categorization.py # Processo automatizado de melhoria
+├── extract_outros.py       # Extração de transações "Outros"
+├── suggest_categories.py   # Sugestões de categorias
+├── extract_keywords.py     # Extração de palavras-chave
+├── test_categorization.py  # Teste básico do categorizador
+├── test_new_categories.py  # Teste das novas categorias
 ├── main.py                 # Script principal de conversão
 └── requirements.txt        # Dependências do projeto
 ```
