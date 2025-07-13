@@ -4,6 +4,7 @@ Permite personalizar facilmente as regras de categorização.
 """
 
 # Configuração de categorias e palavras-chave
+# Cada categoria pode ter um tipo específico: 'expense' (despesa), 'income' (receita), ou 'both' (ambos)
 CATEGORY_KEYWORDS = {
     "Alimentação": [
         # Delivery e fast food
@@ -24,7 +25,10 @@ CATEGORY_KEYWORDS = {
         # Específicos brasileiros
         "casa do pão", "padaria são paulo", "padaria real", "padaria do seu joão",
         "restaurante japonês", "restaurante italiano", "restaurante árabe",
-        "lanchonete do zé", "pizzaria do tio", "doceria da maria"
+        "lanchonete do zé", "pizzaria do tio", "doceria da maria",
+        
+        # Adicionadas baseadas no CSV
+        "agencia de restaurantes online"
     ],
     
     "Transporte": [
@@ -45,7 +49,11 @@ CATEGORY_KEYWORDS = {
         "uber parking", "99 parking",
         
         # Específicos brasileiros
-        "uber eats", "99 food", "uber eats", "99 food"
+        "uber eats", "99 food", "uber eats", "99 food",
+        
+        # Adicionadas baseadas no CSV
+        "pagamento cancelado uber", "dev pix uber", "dev pix 99 tecnolog",
+        "pagamento cancelado uber * pending", "dev pix uber26/03"
     ],
     
     "Saúde": [
@@ -79,7 +87,11 @@ CATEGORY_KEYWORDS = {
         "hbo max", "paramount+", "globoplay", "pluto tv", "crunchyroll",
         
         # Específicos brasileiros
-        "eletropaulo", "sabesp", "comgás", "net", "claro", "oi", "vivo"
+        "eletropaulo", "sabesp", "comgás", "net", "claro", "oi", "vivo",
+        
+        # Adicionadas baseadas no CSV
+        "da dae-jund", "da cpfl", "da sabesp", "dae-jund", "cpfl", "sabesp",
+        "da cpfl pir", "da dae-jund 00000118677", "dae-jund 00000118677"
     ],
     
     "Educação": [
@@ -109,7 +121,10 @@ CATEGORY_KEYWORDS = {
         "passagem aérea", "passagem rodoviária", "aluguel de carro",
         
         # Específicos brasileiros
-        "smart fit", "fitness one", "academia smart", "academia do seu joão"
+        "smart fit", "fitness one", "academia smart", "academia do seu joão",
+        
+        # Adicionadas baseadas no CSV
+        "multiplex", "omai s past", "rscss-multiplex"
     ],
     
     "Vestuário": [
@@ -163,21 +178,123 @@ CATEGORY_KEYWORDS = {
         # PIX e transferências (apenas correspondências exatas)
         "pix transf", "pix receb", "pix enviado", "transferência", "ted",
         "doc", "pix qr", "pix pago", "pix recebido", "pix enviado",
-        "transferência bancária", "ted doc", "pix transferência"
+        "transferência bancária", "ted doc", "pix transferência",
+        
+        # Adicionadas baseadas no CSV
+        "dev pix", "liberação de dinheiro", "saída de dinheiro", "dinheiro retirado",
+        "débito em conta", "dev pix velox ticke", "dev pix 99 tecnolog",
+        "dev pix uber"
+    ],
+    
+    "Compras Variadas": [
+        # Compras gerais e variadas
+        "compra", "pagamento", "purchase", "payment", "cobrança", "charge",
+        "debito", "credito", "cartão", "card", "pagto", "pag", "pgt",
+        "loja", "store", "shop", "mercado", "supermercado", "shopping",
+        "centro comercial", "mall", "plaza", "galeria", "feira", "bazar",
+        "atacado", "varejo", "varejista", "distribuidor", "fornecedor",
+        "empresa", "comercio", "comércio", "estabelecimento", "estabelecimento comercial",
+        
+        # Compras online
+        "amazon", "mercado livre", "americanas", "magazine luiza", "casas bahia",
+        "kabum", "terabyte", "pichau", "aliexpress", "shopee", "wish",
+        "olx", "enjoei", "b2w", "submarino", "shoptime", "extra", "carrefour",
+        "pão de açúcar", "assai", "atacadão", "big", "walmart", "sam's club",
+        
+        # Compras específicas
+        "eletrônicos", "eletronicos", "informática", "informatica", "tecnologia",
+        "casa", "casa e jardim", "decoração", "decoracao", "móveis", "moveis",
+        "ferramentas", "ferramenta", "construção", "construcao", "material de construção",
+        "brinquedos", "brinquedo", "jogos", "jogo", "livros", "livro", "papelaria",
+        "papelaria", "material escolar", "material de escritório", "material de escritorio",
+        
+        # Específicos brasileiros
+        "mercado livre", "americanas", "magazine luiza", "casas bahia", "kabum",
+        "terabyte", "pichau", "aliexpress", "shopee", "olx", "enjoei", "b2w"
+    ],
+    
+    "Salário": [
+        # Salário e remuneração
+        "salário", "salario", "remuneração", "remuneracao", "ordenado", "vencimento",
+        "pagamento salário", "pagamento salario", "pag salário", "pag salario",
+        "salário recebido", "salario recebido", "remuneração recebida", "remuneracao recebida",
+        "ordenado recebido", "vencimento recebido", "pagamento de salário", "pagamento de salario",
+        
+        # Tipos de remuneração
+        "13º salário", "13o salario", "décimo terceiro", "decimo terceiro",
+        "férias", "ferias", "pagamento de férias", "pagamento de ferias",
+        "férias proporcionais", "ferias proporcionais", "férias vencidas", "ferias vencidas",
+        "férias + 1/3", "ferias + 1/3", "férias mais um terço", "ferias mais um terco",
+        
+        # Benefícios
+        "vale refeição", "vale refeicao", "vale alimentação", "vale alimentacao",
+        "vale transporte", "vale combustível", "vale combustivel", "vale alimentação",
+        "vale alimentacao", "vale refeição", "vale refeicao", "vale transporte",
+        "vale combustível", "vale combustivel", "vale alimentação", "vale alimentacao",
+        
+        # Comissões e bônus
+        "comissão", "comissao", "bônus", "bonus", "gratificação", "gratificacao",
+        "prêmio", "premio", "incentivo", "participação nos lucros", "participacao nos lucros",
+        "plr", "participação", "participacao", "lucros", "lucro",
+        
+        # Específicos brasileiros
+        "13º salário", "13o salario", "décimo terceiro", "decimo terceiro",
+        "férias", "ferias", "vale refeição", "vale refeicao", "vale alimentação",
+        "vale alimentacao", "vale transporte", "vale combustível", "vale combustivel"
+    ],
+    
+    "Reservas": [
+        # Reservas automáticas do MercadoPago
+        "reserva por gastos férias", "reserva por vendas férias", "dinheiro reservado",
+        "reserva por gastos", "reserva por vendas", "reserva por gastos férias",
+        "reserva por vendas férias", "reserva por gastos férias", "reserva por vendas férias"
+    ],
+    
+    "Impostos": [
+        # Impostos e taxas governamentais
+        "int ipva", "int licenc", "imposto", "taxa", "ipva", "licenciamento",
+        "int ipva-sp", "int licenc sp", "ipva-sp", "licenc sp", "impostos",
+        "taxas", "imposto ipva", "imposto licenciamento", "taxa ipva", "taxa licenciamento"
     ]
+}
+
+# Configuração do tipo de transação para cada categoria
+# 'expense': apenas para despesas (débitos negativos)
+# 'income': apenas para receitas (créditos positivos)  
+# 'both': para ambos os tipos
+CATEGORY_TYPES = {
+    "Alimentação": "expense",
+    "Transporte": "expense", 
+    "Saúde": "expense",
+    "Moradia": "expense",
+    "Educação": "expense",
+    "Lazer": "expense",
+    "Vestuário": "expense",
+    "Serviços": "expense",
+    "Compras Variadas": "expense",
+    "Investimentos": "both",  # Pode ser aplicação (despesa) ou rendimento (receita)
+    "Transferências": "both",  # Pode ser envio (despesa) ou recebimento (receita)
+    "Salário": "income",
+    "Reservas": "expense",  # Reservas automáticas são sempre despesas
+    "Impostos": "expense",  # Impostos são sempre despesas
+    "Outros": "both"
 }
 
 # Configuração de prioridades (quanto maior, maior a prioridade)
 CATEGORY_PRIORITIES = {
-    "Alimentação": 10,
-    "Transporte": 10,
-    "Saúde": 9,
-    "Moradia": 9,
-    "Educação": 8,
-    "Vestuário": 8,  # Aumentada para ter prioridade sobre Lazer
-    "Lazer": 7,
-    "Serviços": 5,
-    "Investimentos": 5,
+    "Alimentação": 15,  # Aumentada para ter prioridade sobre Transferências
+    "Transporte": 15,   # Aumentada para ter prioridade sobre Transferências
+    "Saúde": 14,
+    "Moradia": 14,
+    "Educação": 13,
+    "Vestuário": 13,  # Aumentada para ter prioridade sobre Lazer
+    "Lazer": 12,
+    "Compras Variadas": 11,  # Prioridade média para compras gerais
+    "Serviços": 10,
+    "Investimentos": 9,
+    "Salário": 8,  # Prioridade baixa para receitas
+    "Reservas": 7,  # Prioridade baixa para reservas automáticas
+    "Impostos": 8,  # Prioridade média para impostos
     "Transferências": 1,  # Baixa prioridade para não conflitar
     "Outros": 0
 }
