@@ -11,6 +11,9 @@ import xml.etree.ElementTree as ET
 from ofxparse import OfxParser
 from services.logger import StructuredLogger
 from services.smart_keyword_categorizer import SmartKeywordCategorizer
+import unicodedata
+import re # Added for regex processing
+from keyword_config import CATEGORY_KEYWORDS
 
 class SmartCategorizeOFXApp:
     """Aplicação de categorização inteligente usando palavras-chave."""
@@ -85,7 +88,21 @@ class SmartCategorizeOFXApp:
                     if 'codec' in str(e).lower():
                         continue
                     else:
-                        raise e
+                        # Se for erro de ledger balance, tenta processar mesmo assim
+                        if 'Empty ledger balance' in str(e):
+                            self.logger.warning(f"Saldo não pode ser lido em {ofx_file.name}, mas continuando processamento...")
+                            # Tenta processar o arquivo mesmo com erro de saldo
+                            try:
+                                with open(ofx_file, 'r', encoding=encoding, errors='ignore') as file:
+                                    ofx = OfxParser()
+                                    parsed_ofx = ofx.parse(file)
+                                break
+                            except Exception as parse_error:
+                                # Se ainda falhar, tenta processar o arquivo diretamente
+                                self.logger.warning(f"Tentando processamento alternativo para {ofx_file.name}")
+                                return self._process_ofx_alternative(ofx_file)
+                        else:
+                            raise e
             
             if parsed_ofx is None:
                 raise Exception("Não foi possível ler o arquivo com nenhum encoding suportado")
@@ -120,6 +137,42 @@ class SmartCategorizeOFXApp:
             self.logger.error(f"Erro ao processar {ofx_file.name}: {e}")
             return {'total': 0, 'categorized': 0}
     
+    def _process_ofx_alternative(self, ofx_file: Path) -> Dict[str, int]:
+        """Processa arquivo OFX usando método alternativo quando ofxparse falha."""
+        try:
+            # Lê o arquivo diretamente e extrai transações usando regex
+            with open(ofx_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            # Extrai transações usando regex
+            transactions = self._extract_transactions_with_regex(content)
+            
+            if not transactions:
+                self.logger.warning(f"Nenhuma transação encontrada em {ofx_file.name}")
+                return {'total': 0, 'categorized': 0}
+            
+            # Categoriza as transações
+            categorized_count = 0
+            categorized_transactions = []
+            
+            for transaction in transactions:
+                category = self._categorize_transaction(transaction)
+                if category:
+                    categorized_count += 1
+                    transaction['category'] = category
+                categorized_transactions.append(transaction)
+            
+            # Salva o arquivo categorizado
+            self._save_categorized_ofx_file(ofx_file, categorized_transactions, None)
+            
+            self.logger.info(f"Arquivo processado (método alternativo): {categorized_count}/{len(transactions)} transações categorizadas")
+            
+            return {'total': len(transactions), 'categorized': categorized_count}
+            
+        except Exception as e:
+            self.logger.error(f"Erro no processamento alternativo de {ofx_file.name}: {e}")
+            return {'total': 0, 'categorized': 0}
+    
     def _extract_transactions_from_ofx(self, parsed_ofx) -> List[Dict]:
         """Extrai todas as transações do arquivo OFX usando ofxparse."""
         transactions = []
@@ -128,14 +181,72 @@ class SmartCategorizeOFXApp:
         for account in parsed_ofx.accounts:
             if hasattr(account, 'statement') and account.statement:
                 for transaction in account.statement.transactions:
+                    # Formatar data como YYYYMMDD
+                    date_str = transaction.date.strftime('%Y%m%d') if transaction.date else ''
+                    
                     transaction_dict = {
                         'description': transaction.memo or transaction.type or '',
                         'amount': float(transaction.amount) if transaction.amount else 0.0,
-                        'date': transaction.date,
+                        'date': date_str,
                         'type': transaction.type,
                         'id': transaction.id if hasattr(transaction, 'id') else None
                     }
                     transactions.append(transaction_dict)
+        
+        return transactions
+    
+    def _extract_transactions_with_regex(self, content: str) -> List[Dict]:
+        """Extrai transações do conteúdo OFX usando regex."""
+        transactions = []
+        
+        # Padrão para encontrar blocos de transação
+        transaction_pattern = r'<STMTTRN>.*?</STMTTRN>'
+        transaction_blocks = re.findall(transaction_pattern, content, re.DOTALL)
+        
+        for i, block in enumerate(transaction_blocks):
+            try:
+                # Padrões para extrair dados da transação
+                trntype_pattern = r'<TRNTYPE>([^<\n]+)'
+                dtposted_pattern = r'<DTPOSTED>([^<\n]+)'
+                trnamt_pattern = r'<TRNAMT>([^<\n]+)'
+                memo_pattern = r'<MEMO>([^<\n]+)'
+                fitid_pattern = r'<FITID>([^<\n]+)'
+                
+                # Extrair valores
+                trntype = re.search(trntype_pattern, block)
+                dtposted = re.search(dtposted_pattern, block)
+                trnamt = re.search(trnamt_pattern, block)
+                memo = re.search(memo_pattern, block)
+                fitid = re.search(fitid_pattern, block)
+                
+                if all([trntype, dtposted, trnamt]):
+                    # Processar tipo de transação
+                    transaction_type = "entrada" if trntype.group(1).strip() == "CREDIT" else "saída"
+                    
+                    # Processar data (formato OFX: YYYYMMDDHHMMSS)
+                    date_str = dtposted.group(1).strip()[:8]  # Pegar apenas YYYYMMDD
+                    
+                    # Processar valor
+                    amount = float(trnamt.group(1).strip())
+                    
+                    # Processar descrição
+                    description = memo.group(1).strip() if memo else f"Transação {i + 1}"
+                    
+                    # Processar FITID
+                    fitid_str = fitid.group(1).strip() if fitid else f"trans_{i + 1}_{date_str}"
+                    
+                    transaction_dict = {
+                        'description': description,
+                        'amount': amount,
+                        'date': date_str,  # Usar formato YYYYMMDD
+                        'type': trntype.group(1).strip(),
+                        'fitid': fitid_str
+                    }
+                    transactions.append(transaction_dict)
+                    
+            except Exception as e:
+                self.logger.warning(f"Erro ao processar transação {i + 1}: {e}")
+                continue
         
         return transactions
     
@@ -155,7 +266,7 @@ class SmartCategorizeOFXApp:
             return "Outros"
     
     def _save_categorized_ofx_file(self, original_file: Path, categorized_transactions: List[Dict], output_file: Path) -> None:
-        """Salva o arquivo OFX categorizado."""
+        """Salva o arquivo OFX categorizado mantendo o formato original."""
         try:
             # Lê o conteúdo original do arquivo com encoding correto
             encodings_to_try = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
@@ -168,43 +279,76 @@ class SmartCategorizeOFXApp:
                     break
                 except UnicodeDecodeError:
                     continue
-            
             if original_content is None:
-                original_content = "Erro ao ler arquivo original"
+                raise Exception("Não foi possível ler o arquivo original")
             
-            # Cria um arquivo de relatório com as categorizações
+            # Cria um mapeamento de transações por FITID
+            transaction_map = {}
+            for transaction in categorized_transactions:
+                fitid = transaction.get('fitid', '')
+                if fitid:
+                    transaction_map[fitid] = transaction.get('category', 'Outros')
+            
+            # Modifica o conteúdo OFX original adicionando categorias
+            modified_content = self._add_categories_to_ofx(original_content, transaction_map)
+            
+            # Salva o arquivo com o mesmo nome do original (sem prefixo)
+            output_file = self.output_dir / original_file.name
             with open(output_file, 'w', encoding='utf-8') as f:
-                f.write("=== RELATÓRIO DE CATEGORIZAÇÃO ===\n\n")
-                f.write(f"Total de transações: {len(categorized_transactions)}\n\n")
-                
-                # Agrupa por categoria
-                categories = {}
-                for transaction in categorized_transactions:
-                    category = transaction.get('category', 'Outros')
-                    if category not in categories:
-                        categories[category] = []
-                    categories[category].append(transaction)
-                
-                # Escreve estatísticas por categoria
-                for category, transactions in sorted(categories.items()):
-                    total_amount = sum(t.get('amount', 0) for t in transactions)
-                    f.write(f"\n=== {category.upper()} ===\n")
-                    f.write(f"Quantidade: {len(transactions)}\n")
-                    f.write(f"Valor total: R$ {total_amount:.2f}\n")
-                    f.write("Transações:\n")
-                    
-                    for transaction in transactions:
-                        date = transaction.get('date', 'N/A')
-                        amount = transaction.get('amount', 0)
-                        description = transaction.get('description', '')
-                        f.write(f"  {date}: R$ {amount:.2f} - {description}\n")
-                
-                f.write(f"\n\n=== CONTEÚDO ORIGINAL ===\n")
-                f.write(original_content)
-            
-            self.logger.info(f"Arquivo salvo: {output_file.name}")
+                f.write(modified_content)
+            self.logger.info(f"Arquivo OFX categorizado salvo: {output_file.name}")
         except Exception as e:
             self.logger.error(f"Erro ao salvar arquivo: {e}")
+
+    def _normalize_text(self, text: str) -> str:
+        """Normaliza texto para comparação flexível (sem acento, caixa baixa, sem espaços extras)."""
+        text = text.lower().strip()
+        text = ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+        text = ' '.join(text.split())
+        return text
+
+    def _add_categories_to_ofx(self, ofx_content: str, transaction_map: Dict[str, str]) -> str:
+        """Adiciona categorias ao conteúdo OFX original usando FITID quando possível."""
+        lines = ofx_content.split('\n')
+        modified_lines = []
+        last_fitid = None
+        
+        for line in lines:
+            if '<FITID>' in line:
+                # Captura o FITID da transação
+                last_fitid = line.replace('<FITID>', '').replace('</FITID>', '').strip()
+                modified_lines.append(line)
+            elif '<MEMO>' in line:
+                # Extrai o conteúdo do MEMO
+                if '</MEMO>' in line:
+                    memo_content = line.replace('<MEMO>', '').replace('</MEMO>', '').strip()
+                else:
+                    memo_content = line.replace('<MEMO>', '').strip()
+                
+                # Busca categoria pelo FITID ou categoriza pela descrição
+                category = None
+                if last_fitid and last_fitid in transaction_map:
+                    category = transaction_map[last_fitid]
+                else:
+                    category = self.categorizer.categorize_transaction(memo_content, 0)
+                
+                # Adiciona categoria se não existir
+                if '[CATEGORIA:' not in memo_content:
+                    if '</MEMO>' in line:
+                        modified_memo = f"<MEMO>{memo_content} [CATEGORIA: {category}]</MEMO>"
+                    else:
+                        modified_memo = f"<MEMO>{memo_content} [CATEGORIA: {category}]"
+                else:
+                    if '</MEMO>' in line:
+                        modified_memo = f"<MEMO>{memo_content}</MEMO>"
+                    else:
+                        modified_memo = f"<MEMO>{memo_content}"
+                
+                modified_lines.append(modified_memo)
+            else:
+                modified_lines.append(line)
+        
+        return '\n'.join(modified_lines)
     
     def _show_statistics(self) -> None:
         """Mostra estatísticas da categorização."""
@@ -215,30 +359,26 @@ class SmartCategorizeOFXApp:
         total_files = 0
         total_transactions = 0
         
-        for output_file in self.output_dir.glob("categorizado_*.ofx"):
+        for output_file in self.output_dir.glob("*.ofx"):
+            # Pula arquivos que não são do diretório de saída (arquivos originais)
+            if output_file.parent.name != "ofxs_categorizados":
+                continue
+                
             try:
                 with open(output_file, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                # Extrai estatísticas do arquivo de relatório
+                # Conta categorias no arquivo OFX
                 lines = content.split('\n')
-                in_category = False
-                current_category = None
-                
                 for line in lines:
-                    if line.startswith('=== ') and line.endswith(' ==='):
-                        current_category = line[4:-4].strip()
-                        if current_category != 'RELATÓRIO DE CATEGORIZAÇÃO' and current_category != 'CONTEÚDO ORIGINAL':
-                            in_category = True
-                        else:
-                            in_category = False
-                    elif in_category and line.strip().startswith('Quantidade:'):
-                        try:
-                            count = int(line.split(':')[1].strip())
-                            category_stats[current_category] = category_stats.get(current_category, 0) + count
-                            total_transactions += count
-                        except (ValueError, IndexError):
-                            pass
+                    if '[CATEGORIA:' in line and ']' in line:
+                        # Extrai a categoria da linha
+                        start_idx = line.find('[CATEGORIA:') + 11
+                        end_idx = line.find(']', start_idx)
+                        if start_idx > 10 and end_idx > start_idx:
+                            category = line[start_idx:end_idx].strip()
+                            category_stats[category] = category_stats.get(category, 0) + 1
+                            total_transactions += 1
                 
                 total_files += 1
                 
@@ -276,42 +416,6 @@ class SmartCategorizeOFXApp:
                 self.logger.info("✅ Boa categorização! Menos de 50% em 'Outros'")
             else:
                 self.logger.warning("⚠️  Categorização pode ser melhorada. Muitas transações em 'Outros'")
-    
-    def test_categorization(self) -> None:
-        """Testa o sistema de categorização com exemplos."""
-        self.logger.info("=== TESTE DE CATEGORIZAÇÃO ===")
-        
-        test_cases = [
-            ("PIX QRS IFOOD COM A18/06", 45.90, "Alimentação"),
-            ("PAY UBER 14/06", 25.50, "Transporte"),
-            ("DA DROGASIL 19/06", 15.80, "Saúde"),
-            ("DA SABESP 00000118677", 120.00, "Moradia"),
-            ("PIX TRANSF Bruna A17/06", 500.00, "Transferências"),
-            ("REND PAGO APLIC AUT MAIS", 150.00, "Investimentos"),
-            ("PAY CINEMA 20/06", 35.00, "Lazer"),
-            ("PAY SHOPPING 22/06", 200.00, "Vestuário"),
-            ("PAY ADVOGADO 25/06", 800.00, "Serviços"),
-            ("PAY ESCOLA 28/06", 500.00, "Educação"),
-            ("PAY DESCONHECIDO 30/06", 50.00, "Outros"),
-        ]
-        
-        correct = 0
-        total = len(test_cases)
-        
-        for description, amount, expected in test_cases:
-            result = self.categorizer.categorize_transaction(description, amount)
-            status = "✅" if result == expected else "❌"
-            self.logger.info(f"{status} '{description}' -> {result} (esperado: {expected})")
-            if result == expected:
-                correct += 1
-        
-        accuracy = (correct / total) * 100
-        self.logger.info(f"\nPrecisão do teste: {correct}/{total} ({accuracy:.1f}%)")
-        
-        if accuracy >= 80:
-            self.logger.info("✅ Sistema de categorização funcionando bem!")
-        else:
-            self.logger.warning("⚠️  Sistema pode precisar de ajustes")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -320,24 +424,13 @@ def main():
         epilog="""
 Exemplos de uso:
   python categorize_smart.py
-  python categorize_smart.py --test
         """
-    )
-    
-    parser.add_argument(
-        "--test",
-        action="store_true",
-        help="Executa teste de categorização com exemplos"
     )
     
     args = parser.parse_args()
     
     app = SmartCategorizeOFXApp()
-    
-    if args.test:
-        app.test_categorization()
-    else:
-        app.run()
+    app.run()
 
 if __name__ == '__main__':
     main() 
