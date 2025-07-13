@@ -83,37 +83,40 @@ class SmartKeywordCategorizer:
     def categorize_transaction(self, description: str, amount: float = 0.0) -> str:
         """
         Categoriza uma transação baseada na descrição e tipo.
-        
-        Args:
-            description: Descrição da transação
-            amount: Valor da transação (pode influenciar categorização)
-            
-        Returns:
-            Categoria identificada
         """
         if not description:
             return "Outros"
-        
         description_clean = self._clean_description(description)
-        
-        # Determina o tipo de transação baseado no valor
         transaction_type = self._determine_transaction_type(amount)
-        
+
         # Busca por correspondências exatas primeiro
         exact_match = self._find_exact_match(description_clean, transaction_type)
         if exact_match:
             return exact_match
-        
+
         # Busca por correspondências de palavras-chave
-        best_match = self._find_best_match(description_clean, amount, transaction_type)
-        if best_match:
-            return best_match
-        
+        best_category = None
+        best_score = 0
+        for category in self.categories:
+            if not category.keywords:
+                continue
+            if category.category_type != "both" and category.category_type != transaction_type:
+                continue
+            score = self._calculate_match_score(description_clean, category, amount)
+            if score > best_score:
+                best_score = score
+                best_category = category.category
+        try:
+            from keyword_config import MIN_SCORE_THRESHOLD
+        except ImportError:
+            MIN_SCORE_THRESHOLD = 0.3
+        if best_category and best_score > MIN_SCORE_THRESHOLD:
+            return best_category
+
         # Aplica regras contextuais
         contextual_match = self._apply_contextual_rules(description_clean, amount, transaction_type)
         if contextual_match:
             return contextual_match
-        
         return "Outros"
     
     def _clean_description(self, description: str) -> str:
@@ -126,19 +129,17 @@ class SmartKeywordCategorizer:
     def _determine_transaction_type(self, amount: float) -> str:
         """
         Determina o tipo de transação baseado no valor.
-        
         Args:
             amount: Valor da transação
-            
         Returns:
-            'expense' para valores negativos, 'income' para valores positivos
+            'expense' para valores negativos ou zero, 'income' para valores positivos
         """
         if amount < 0:
             return "expense"
         elif amount > 0:
             return "income"
         else:
-            return "both"  # Para valores zero, considera ambos os tipos
+            return "expense"  # Para valores zero, considera como despesa
     
     def _find_exact_match(self, description: str, transaction_type: str) -> Optional[str]:
         """Busca por correspondências exatas."""
