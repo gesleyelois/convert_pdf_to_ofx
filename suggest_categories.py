@@ -407,7 +407,7 @@ class CategorySuggester:
     def _save_csv(self, transactions: List[Dict]) -> None:
         """Salva o arquivo CSV com as categorias sugeridas."""
         with open(self.output_file, 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ['description', 'category', 'amount', 'date', 'file', 'suggested_category']
+            fieldnames = ['fitid', 'description', 'category', 'amount', 'date', 'file', 'suggested_category']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             
             # Escreve o cabeçalho
@@ -415,8 +415,14 @@ class CategorySuggester:
             
             # Escreve as transações
             for transaction in transactions:
+                fitid = transaction.get('fitid', '')
+                if not fitid:
+                    # Gera hash SHA1 de date+amount+description
+                    import hashlib
+                    base = f"{transaction.get('date','')}_{transaction.get('amount','')}_{transaction.get('description','')}"
+                    fitid = hashlib.sha1(base.encode('utf-8')).hexdigest()
+                    transaction['fitid'] = fitid
                 writer.writerow(transaction)
-        
         print(f"💾 Arquivo salvo: {self.output_file}")
     
     def _show_statistics(self, transactions: List[Dict]) -> None:

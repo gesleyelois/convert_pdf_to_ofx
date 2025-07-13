@@ -6,9 +6,9 @@ Seguindo o princípio de Single Responsibility.
 import re
 from typing import List
 from pathlib import Path
-from interfaces import OFXParser, Transaction, AccountData
+from interfaces import Transaction, AccountData
 
-class OFXParserImpl(OFXParser):
+class OFXParserImpl:
     """Implementação do parser de arquivos OFX."""
     
     def parse(self, file_path: str) -> tuple[List[Transaction], AccountData]:
@@ -89,12 +89,14 @@ class OFXParserImpl(OFXParser):
         dtposted_pattern = r'<DTPOSTED>([^<\n]+)'
         trnamt_pattern = r'<TRNAMT>([^<\n]+)'
         memo_pattern = r'<MEMO>([^<\n]+)'
+        fitid_pattern = r'<FITID>([^<\n]+)'
         
         # Extrair valores
         trntype = re.search(trntype_pattern, block)
         dtposted = re.search(dtposted_pattern, block)
         trnamt = re.search(trnamt_pattern, block)
         memo = re.search(memo_pattern, block)
+        fitid = re.search(fitid_pattern, block)
         
         if not all([trntype, dtposted, trnamt]):
             raise ValueError(f"Dados obrigatórios não encontrados na transação {index}")
@@ -111,10 +113,14 @@ class OFXParserImpl(OFXParser):
         # Processar descrição
         description = memo.group(1).strip() if memo else f"Transação {index}"
         
+        # Processar FITID
+        fitid_str = fitid.group(1).strip() if fitid else ""
+        
         return Transaction(
             date=date_str,
             amount=amount,
             description=description,
             transaction_type=transaction_type,
-            trntype=trntype.group(1).strip()
+            trntype=trntype.group(1).strip(),
+            fitid=fitid_str
         ) 

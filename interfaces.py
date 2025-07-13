@@ -17,6 +17,7 @@ class Transaction:
     transaction_type: str  # 'entrada' ou 'saída'
     trntype: str  # 'CREDIT' ou 'DEBIT'
     category: str = ""  # Categoria da transação (adicionado para categorização)
+    fitid: str = ""  # ID único da transação (opcional, para correspondência precisa)
 
 @dataclass
 class AccountData:

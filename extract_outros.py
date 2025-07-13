@@ -10,6 +10,7 @@ from typing import List, Dict
 from ofxparse import OfxParser
 from services.logger import StructuredLogger
 from services.smart_keyword_categorizer import SmartKeywordCategorizer
+import hashlib
 
 class ExtractOutrosTransactions:
     """Classe para extrair transações classificadas como 'Outros'."""
@@ -137,7 +138,7 @@ class ExtractOutrosTransactions:
         """Salva as transações 'Outros' em um arquivo CSV."""
         try:
             with open(self.output_file, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['description', 'category', 'amount', 'date', 'file']
+                fieldnames = ['fitid', 'description', 'category', 'amount', 'date', 'file']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 # Escreve o cabeçalho
@@ -145,6 +146,12 @@ class ExtractOutrosTransactions:
                 
                 # Escreve as transações
                 for transaction in outros_transactions:
+                    fitid = transaction.get('fitid', '')
+                    if not fitid:
+                        # Gera hash SHA1 de date+amount+description
+                        base = f"{transaction.get('date','')}_{transaction.get('amount','')}_{transaction.get('description','')}"
+                        fitid = hashlib.sha1(base.encode('utf-8')).hexdigest()
+                        transaction['fitid'] = fitid
                     writer.writerow(transaction)
             
             self.logger.info(f"Arquivo CSV salvo: {self.output_file}")
