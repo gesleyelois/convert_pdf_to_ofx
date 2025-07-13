@@ -84,7 +84,10 @@ class OFXWriterRefactored(OFXWriter):
         file.write(f"<TRNTYPE>{transaction.trntype}\n")
         file.write(f"<DTPOSTED>{transaction.date}000000{OFX_CONFIG['timezone']}\n")
         file.write(f"<TRNAMT>{transaction.amount:.2f}\n")
-        file.write(f"<FITID>trans_{index:03d}_{transaction.date}\n")
+        # Formata a data para YYYYMMDD
+        date_obj = datetime.datetime.strptime(transaction.date, "%Y%m%d")
+        date_str = date_obj.strftime('%Y%m%d')
+        file.write(f"<FITID>trans_{index:03d}_{date_str}\n")
         file.write(f"<MEMO>{transaction.description}\n")
         file.write("</STMTTRN>\n")
     

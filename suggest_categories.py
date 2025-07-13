@@ -15,6 +15,7 @@ class CategorySuggester:
     def __init__(self):
         self.input_file = Path("csv_reports/transacoes_outros.csv")
         self.output_file = Path("csv_reports/transacoes_outros_sugeridas.csv")
+        self.transaction_counter = 0
         
         # Mapeamento de padrões para categorias sugeridas
         self.pattern_mappings = {
@@ -344,6 +345,26 @@ class CategorySuggester:
             r'lucro': 'Salário',
         }
     
+    def _generate_fitid(self, transaction_date) -> str:
+        """Gera um FITID no formato trans_XXX_YYYYMMDD."""
+        self.transaction_counter += 1
+        
+        # Formata a data para YYYYMMDD
+        if hasattr(transaction_date, 'strftime'):
+            date_str = transaction_date.strftime('%Y%m%d')
+        elif isinstance(transaction_date, str):
+            # Tenta converter string para datetime
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(transaction_date.replace('Z', '+00:00'))
+                date_str = dt.strftime('%Y%m%d')
+            except:
+                date_str = '20250101'  # Data padrão se não conseguir converter
+        else:
+            date_str = '20250101'  # Data padrão
+        
+        return f"trans_{self.transaction_counter:03d}_{date_str}"
+    
     def run(self) -> None:
         """Executa a análise e geração do CSV com categorias sugeridas."""
         try:
@@ -415,13 +436,9 @@ class CategorySuggester:
             
             # Escreve as transações
             for transaction in transactions:
-                fitid = transaction.get('fitid', '')
-                if not fitid:
-                    # Gera hash SHA1 de date+amount+description
-                    import hashlib
-                    base = f"{transaction.get('date','')}_{transaction.get('amount','')}_{transaction.get('description','')}"
-                    fitid = hashlib.sha1(base.encode('utf-8')).hexdigest()
-                    transaction['fitid'] = fitid
+                # Gera FITID no novo formato
+                fitid = self._generate_fitid(transaction.get('date', 'N/A'))
+                transaction['fitid'] = fitid
                 writer.writerow(transaction)
         print(f"💾 Arquivo salvo: {self.output_file}")
     

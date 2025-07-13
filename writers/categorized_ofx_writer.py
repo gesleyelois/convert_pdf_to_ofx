@@ -113,8 +113,10 @@ NEWFILEUID:NONE
         # Formatar valor
         amount_formatted = f"{transaction.amount:.2f}"
         
-        # Criar ID único
-        fitid = f"cat_trans_{index:03d}_{transaction.date}"
+        # Criar ID único no formato trans_XXX_YYYYMMDD
+        date_obj = datetime.strptime(transaction.date, "%Y%m%d")
+        date_str = date_obj.strftime('%Y%m%d')
+        fitid = f"trans_{index:03d}_{date_str}"
         
         # Adicionar categoria ao memo
         memo_with_category = f"{transaction.description} [CATEGORIA: {transaction.category}]"

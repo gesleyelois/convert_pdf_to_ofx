@@ -20,6 +20,7 @@ class ExtractOutrosTransactions:
         self.categorizer = SmartKeywordCategorizer(self.logger)
         self.ofxs_dir = Path("ofxs_gerados")
         self.output_file = Path("csv_reports/transacoes_outros.csv")
+        self.transaction_counter = 0
     
     def run(self) -> None:
         """Executa a extração das transações 'Outros'."""
@@ -38,7 +39,31 @@ class ExtractOutrosTransactions:
             self.logger.error(f"Diretório {self.ofxs_dir} não encontrado!")
             raise FileNotFoundError(f"Diretório {self.ofxs_dir} não encontrado")
         
+        # Cria o diretório csv_reports se não existir
+        csv_reports_dir = Path("csv_reports")
+        csv_reports_dir.mkdir(exist_ok=True)
+        
         self.logger.info("Diretórios configurados com sucesso")
+    
+    def _generate_fitid(self, transaction_date) -> str:
+        """Gera um FITID no formato trans_XXX_YYYYMMDD."""
+        self.transaction_counter += 1
+        
+        # Formata a data para YYYYMMDD
+        if hasattr(transaction_date, 'strftime'):
+            date_str = transaction_date.strftime('%Y%m%d')
+        elif isinstance(transaction_date, str):
+            # Tenta converter string para datetime
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(transaction_date.replace('Z', '+00:00'))
+                date_str = dt.strftime('%Y%m%d')
+            except:
+                date_str = '20250101'  # Data padrão se não conseguir converter
+        else:
+            date_str = '20250101'  # Data padrão
+        
+        return f"trans_{self.transaction_counter:03d}_{date_str}"
     
     def _extract_outros_transactions(self) -> List[Dict]:
         """Extrai todas as transações classificadas como 'Outros'."""
@@ -146,12 +171,9 @@ class ExtractOutrosTransactions:
                 
                 # Escreve as transações
                 for transaction in outros_transactions:
-                    fitid = transaction.get('fitid', '')
-                    if not fitid:
-                        # Gera hash SHA1 de date+amount+description
-                        base = f"{transaction.get('date','')}_{transaction.get('amount','')}_{transaction.get('description','')}"
-                        fitid = hashlib.sha1(base.encode('utf-8')).hexdigest()
-                        transaction['fitid'] = fitid
+                    # Gera FITID no novo formato
+                    fitid = self._generate_fitid(transaction.get('date', 'N/A'))
+                    transaction['fitid'] = fitid
                     writer.writerow(transaction)
             
             self.logger.info(f"Arquivo CSV salvo: {self.output_file}")
@@ -216,7 +238,13 @@ Exemplos de uso:
     args = parser.parse_args()
     
     app = ExtractOutrosTransactions()
-    app.output_file = Path(args.output)
+    
+    # Se o output não contém caminho completo, salva em csv_reports
+    if "/" not in args.output and "\\" not in args.output:
+        app.output_file = Path("csv_reports") / args.output
+    else:
+        app.output_file = Path(args.output)
+    
     app.run()
 
 if __name__ == '__main__':

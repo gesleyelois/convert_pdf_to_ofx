@@ -233,7 +233,7 @@ class SmartCategorizeOFXApp:
                     description = memo.group(1).strip() if memo else f"Transação {i + 1}"
                     
                     # Processar FITID
-                    fitid_str = fitid.group(1).strip() if fitid else f"trans_{i + 1}_{date_str}"
+                    fitid_str = fitid.group(1).strip() if fitid else f"trans_{i + 1:03d}_{date_str}"
                     
                     transaction_dict = {
                         'description': description,
