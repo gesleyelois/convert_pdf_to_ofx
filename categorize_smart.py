@@ -74,7 +74,6 @@ class SmartCategorizeOFXApp:
             # Lê o arquivo OFX usando ofxparse com diferentes encodings
             encodings_to_try = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
             parsed_ofx = None
-            
             for encoding in encodings_to_try:
                 try:
                     with open(ofx_file, 'r', encoding=encoding, errors='ignore') as file:
@@ -91,52 +90,47 @@ class SmartCategorizeOFXApp:
                         # Se for erro de ledger balance, tenta processar mesmo assim
                         if 'Empty ledger balance' in str(e):
                             self.logger.warning(f"Saldo não pode ser lido em {ofx_file.name}, mas continuando processamento...")
-                            # Tenta processar o arquivo mesmo com erro de saldo
                             try:
                                 with open(ofx_file, 'r', encoding=encoding, errors='ignore') as file:
                                     ofx = OfxParser()
                                     parsed_ofx = ofx.parse(file)
                                 break
                             except Exception as parse_error:
-                                # Se ainda falhar, tenta processar o arquivo diretamente
                                 self.logger.warning(f"Tentando processamento alternativo para {ofx_file.name}")
                                 return self._process_ofx_alternative(ofx_file)
                         else:
+                            # Fallback para XML puro se for erro de parsing
+                            if 'no element found' in str(e).lower() or 'syntax error' in str(e).lower() or 'not well-formed' in str(e).lower():
+                                self.logger.warning(f"Tentando fallback XML puro para {ofx_file.name}")
+                                return self._process_ofx_xml_fallback(ofx_file)
                             raise e
-            
             if parsed_ofx is None:
-                raise Exception("Não foi possível ler o arquivo com nenhum encoding suportado")
-            
+                # Fallback para XML puro se não conseguiu com ofxparse
+                self.logger.warning(f"Tentando fallback XML puro para {ofx_file.name}")
+                return self._process_ofx_xml_fallback(ofx_file)
             # Extrai transações
             transactions = self._extract_transactions_from_ofx(parsed_ofx)
-            
             if not transactions:
                 self.logger.warning(f"Nenhuma transação encontrada em {ofx_file.name}")
                 return {'total': 0, 'categorized': 0}
-            
             # Categoriza as transações
             categorized_count = 0
             categorized_transactions = []
-            
             for transaction in transactions:
                 category = self._categorize_transaction(transaction)
                 if category:
                     categorized_count += 1
                     transaction['category'] = category
                 categorized_transactions.append(transaction)
-            
             # Salva o arquivo categorizado
             output_file = self.output_dir / f"categorizado_{ofx_file.name}"
             self._save_categorized_ofx_file(ofx_file, categorized_transactions, output_file)
-            
             self.logger.info(f"Arquivo processado: {categorized_count}/{len(transactions)} transações categorizadas")
-            
             return {'total': len(transactions), 'categorized': categorized_count}
-            
         except Exception as e:
             self.logger.error(f"Erro ao processar {ofx_file.name}: {e}")
             return {'total': 0, 'categorized': 0}
-    
+
     def _process_ofx_alternative(self, ofx_file: Path) -> Dict[str, int]:
         """Processa arquivo OFX usando método alternativo quando ofxparse falha."""
         try:
@@ -171,6 +165,52 @@ class SmartCategorizeOFXApp:
             
         except Exception as e:
             self.logger.error(f"Erro no processamento alternativo de {ofx_file.name}: {e}")
+            return {'total': 0, 'categorized': 0}
+
+    def _process_ofx_xml_fallback(self, ofx_file: Path) -> Dict[str, int]:
+        """Processa arquivo OFX XML puro usando ElementTree."""
+        try:
+            import xml.etree.ElementTree as ET
+            with open(ofx_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            root = ET.fromstring(content)
+            transactions = []
+            for stmttrn in root.findall('.//STMTTRN'):
+                trntype = stmttrn.findtext('TRNTYPE', default='')
+                dtposted = stmttrn.findtext('DTPOSTED', default='')
+                trnamt = stmttrn.findtext('TRNAMT', default='0')
+                fitid = stmttrn.findtext('FITID', default='')
+                memo = stmttrn.findtext('MEMO', default='')
+                date_str = dtposted[:8] if dtposted else ''
+                try:
+                    amount = float(trnamt.replace(',', '.'))
+                except Exception:
+                    amount = 0.0
+                transaction_dict = {
+                    'description': memo or trntype or '',
+                    'amount': amount,
+                    'date': date_str,
+                    'type': trntype,
+                    'fitid': fitid
+                }
+                transactions.append(transaction_dict)
+            if not transactions:
+                self.logger.warning(f"Nenhuma transação encontrada em {ofx_file.name} (XML)")
+                return {'total': 0, 'categorized': 0}
+            categorized_count = 0
+            categorized_transactions = []
+            for transaction in transactions:
+                category = self._categorize_transaction(transaction)
+                if category:
+                    categorized_count += 1
+                    transaction['category'] = category
+                categorized_transactions.append(transaction)
+            output_file = self.output_dir / f"categorizado_{ofx_file.name}"
+            self._save_categorized_ofx_file(ofx_file, categorized_transactions, output_file)
+            self.logger.info(f"Arquivo processado (XML): {categorized_count}/{len(transactions)} transações categorizadas")
+            return {'total': len(transactions), 'categorized': categorized_count}
+        except Exception as e:
+            self.logger.error(f"Erro no fallback XML de {ofx_file.name}: {e}")
             return {'total': 0, 'categorized': 0}
     
     def _extract_transactions_from_ofx(self, parsed_ofx) -> List[Dict]:
